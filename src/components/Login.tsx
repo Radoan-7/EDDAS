@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useApp } from "@/lib/store";
 import type { Role } from "@/lib/types";
-import { ShieldAlert, Stethoscope, Syringe, Pill, User, Settings, ArrowRight } from "lucide-react";
+import { ShieldAlert, Stethoscope, Syringe, Pill, User, Settings, ArrowRight, Moon, Sun } from "lucide-react";
 
 const roles: { role: Role; desc: string; icon: typeof User; color: string }[] = [
   { role: "Doctor", desc: "Prescribe & verify allergies", icon: Stethoscope, color: "from-blue-500 to-blue-600" },
@@ -12,14 +12,22 @@ const roles: { role: Role; desc: string; icon: typeof User; color: string }[] = 
 ];
 
 export function Login() {
-  const { login } = useApp();
+  const { login, darkMode, toggleDarkMode, users } = useApp();
   const [selected, setSelected] = useState<Role | null>(null);
   const [name, setName] = useState("");
+  const [loginError, setLoginError] = useState("");
 
-  const needsName = selected === "Doctor" || selected === "Pharmacist" || selected === "Nurse";
+  const needsName = selected !== null;
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white flex flex-col">
+      <button
+        onClick={toggleDarkMode}
+        aria-label={darkMode ? "Switch to light mode" : "Switch to dark mode"}
+        className="fixed right-4 top-4 rounded-xl border border-slate-200 bg-white/80 p-2.5 text-slate-600 shadow-sm transition hover:bg-white"
+      >
+        {darkMode ? <Sun size={18} /> : <Moon size={18} />}
+      </button>
       <div className="flex-1 flex items-center justify-center px-4 py-10">
         <div className="w-full max-w-md">
           <div className="text-center mb-8">
@@ -38,7 +46,7 @@ export function Login() {
                 return (
                   <button
                     key={role}
-                    onClick={() => setSelected(role)}
+                    onClick={() => { setSelected(role); setLoginError(""); setName(""); }}
                     className={`flex items-center gap-3 p-3 rounded-xl border text-left transition-all ${
                       active
                         ? "border-blue-500 bg-blue-50 ring-1 ring-blue-200"
@@ -59,24 +67,31 @@ export function Login() {
 
             {selected && needsName && (
               <div className="mt-4">
-                <label className="block text-xs font-medium text-slate-600 mb-1.5">Your name</label>
+                <label className="block text-xs font-medium text-slate-600 mb-1.5">Your account name</label>
                 <input
                   value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder="e.g. Dr. Ahmed"
+                  onChange={(e) => { setName(e.target.value); setLoginError(""); }}
+                  placeholder={selected === "Patient" ? "e.g. Rafiq" : "Enter your registered account name"}
+                  aria-label="Your account name"
+                  list="login-accounts"
                   className="w-full px-3 py-2 text-sm rounded-lg border border-slate-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition"
                 />
+                <datalist id="login-accounts">{users.filter((user) => user.role === selected).map((user) => <option key={user.id} value={user.name}>{user.active ? user.role : "Deactivated account"}</option>)}</datalist>
               </div>
             )}
 
             <button
-              disabled={!selected || (needsName && !name.trim())}
-              onClick={() => selected && login(selected, name.trim())}
+              disabled={!selected || !name.trim()}
+              onClick={() => {
+                if (!selected) return;
+                if (!login(selected, name.trim())) setLoginError("Account not found, deactivated, or assigned to another role. Contact an administrator.");
+              }}
               className="mt-4 w-full inline-flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-200 disabled:text-slate-400 text-white text-sm font-semibold py-2.5 rounded-xl transition-colors"
             >
               Continue
               <ArrowRight size={16} />
             </button>
+            {loginError && <p role="alert" className="mt-3 text-center text-xs font-medium text-red-700">{loginError}</p>}
           </div>
           <p className="text-center text-xs text-slate-400 mt-6">Decision support only – final decisions rest with the healthcare professional.</p>
         </div>
